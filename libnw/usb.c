@@ -8,48 +8,14 @@
 #include "libnw.h"
 #include "utils.h"
 
-static int
-ParseHwid(PNODE nd, CHAR* Ids, DWORD IdsSize, const CHAR *Hwid)
-{
-	CHAR VendorID[5] = { 0 };
-	CHAR DeviceID[5] = { 0 };
-	// USB\VID_XXXX&PID_XXXX
-	// USB\ROOT_HUBXX&VIDXXXX&PIDXXXX
-	if (!Hwid || strlen(Hwid) < 21)
-		return 0;
-	if (_strnicmp(Hwid, "USB\\VID_", 8) != 0)
-	{
-		CHAR* p = strstr(Hwid, "VID");
-		if (p && strlen(p) > 7)
-			snprintf(VendorID, 5, "%s", p + 3);
-		else
-			return 0;
-	}
-	else
-		snprintf(VendorID, 5, "%s", Hwid + 8);
-	if (_strnicmp(Hwid + 12, "&PID_", 5) != 0)
-	{
-		CHAR* p = strstr(Hwid, "PID");
-		if (p && strlen(p) > 7)
-			snprintf(DeviceID, 5, "%s", p + 3);
-		else
-			return 0;
-	}
-	else
-		snprintf(DeviceID, 5, "%s", Hwid + 17);
-	NWL_FindId(nd, Ids, IdsSize, VendorID, DeviceID, NULL, 1);
-	return 1;
-}
-
 static void
-ParseHwClass(PNODE nd, CHAR* Ids, DWORD IdsSize, const CHAR* BufferHw)
+ParseHwClass(PNODE nd, CHAR* Ids, DWORD IdsSize, LPCSTR BufferHw)
 {
 	// USB\Class_XX&SubClass_XX&Prot_XX
 	// USB\DevClass_XX&SubClass_XX&Prot_XX
 	CHAR HwClass[7] = { 0 };
 	size_t len = strlen(BufferHw);
 	size_t ofs = 0;
-	NWL_NodeAttrSet(nd, "Compatiable ID", BufferHw, 0);
 	if (len >= 12 && strncmp(BufferHw, "USB\\Class_", 10) == 0)
 		memcpy(HwClass, &BufferHw[10], 2);
 	else if (len >= 12 + 3 && strncmp(BufferHw, "USB\\DevClass_", 10 + 3) == 0)
@@ -65,7 +31,7 @@ ParseHwClass(PNODE nd, CHAR* Ids, DWORD IdsSize, const CHAR* BufferHw)
 		if (len >= 31 + ofs && strncmp(&BufferHw[24 + ofs], "&Prot_", 6) == 0)
 			memcpy(&HwClass[4], &BufferHw[30 + ofs], 2);
 	}
-	//NWL_NodeAttrSet(nd, "USB Class", HwClass, 0);
+	NWL_NodeAttrSet(nd, "Class Code", HwClass, 0);
 	NWL_FindClass(nd, Ids, IdsSize, HwClass, 1);
 }
 
@@ -80,49 +46,31 @@ PNODE NW_Usb(VOID)
 	PNODE node = NWL_NodeAlloc("USB", NFLG_TABLE);
 	if (NWLC->UsbInfo)
 		NWL_NodeAppendChild(NWLC->NwRoot, node);
-	Ids = NWL_LoadFileToMemory("usb.ids", &IdsSize);
-	Info = SetupDiGetClassDevsExA(NULL, "USB", NULL, Flags, NULL, NULL, NULL);
+	Ids = NWL_LoadIdsToMemory(L"usb.ids", &IdsSize);
+	Info = SetupDiGetClassDevsW(NULL, L"USB", NULL, Flags);
 	if (Info == INVALID_HANDLE_VALUE)
 	{
-		fprintf(stderr, "SetupDiGetClassDevs failed.\n");
+		NWL_NodeAppendMultiSz(&NWLC->ErrLog, "SetupDiGetClassDevs failed");
 		goto fail;
 	}
 	for (i = 0; SetupDiEnumDeviceInfo(Info, i, &DeviceInfoData); i++)
 	{
 		PNODE nusb = NULL;
-		CHAR* BufferHw = NULL;
-		DWORD BufferHwLen = 0;
-		SetupDiGetDeviceRegistryPropertyA(Info, &DeviceInfoData,
-			SPDRP_HARDWAREID, NULL, NULL, 0, &BufferHwLen);
-		if (BufferHwLen == 0)
+		if (!SetupDiGetDeviceRegistryPropertyW(Info, &DeviceInfoData,
+			SPDRP_HARDWAREID, NULL, (PBYTE)NWLC->NwBufW, NWINFO_BUFSZB, NULL))
 			continue;
-		BufferHw = malloc(BufferHwLen);
-		if (!BufferHw)
-			continue;
-		if (!SetupDiGetDeviceRegistryPropertyA(Info, &DeviceInfoData,
-			SPDRP_HARDWAREID, NULL, BufferHw, BufferHwLen, NULL))
-		{
-			free(BufferHw);
-			continue;
-		}
 		nusb = NWL_NodeAppendNew(node, "Device", NFLG_TABLE_ROW);
-		NWL_NodeAttrSet(nusb, "HWID", BufferHw, 0);
-		ParseHwid(nusb, Ids, IdsSize, BufferHw);
-		free(BufferHw);
-		SetupDiGetDeviceRegistryPropertyA(Info, &DeviceInfoData,
-			SPDRP_COMPATIBLEIDS, NULL, NULL, 0, &BufferHwLen);
-		if (BufferHwLen == 0)
-			continue;
-		BufferHw = malloc(BufferHwLen);
-		if (!BufferHw)
-			continue;
-		if (SetupDiGetDeviceRegistryPropertyA(Info, &DeviceInfoData,
-			SPDRP_COMPATIBLEIDS, NULL, BufferHw, BufferHwLen, NULL)
-			&& BufferHw && BufferHw[0])
+		NWL_NodeAttrSet(nusb, "HWID", NWL_Ucs2ToUtf8(NWLC->NwBufW), 0);
+		NWL_ParseHwid(nusb, Ids, IdsSize, NWLC->NwBufW, 1);
+
+		if (SetupDiGetDeviceRegistryPropertyW(Info, &DeviceInfoData,
+			SPDRP_COMPATIBLEIDS, NULL, (PBYTE)NWLC->NwBufW, NWINFO_BUFSZB, NULL)
+			&& NWLC->NwBufW[0])
 		{
+			LPCSTR BufferHw = NWL_Ucs2ToUtf8(NWLC->NwBufW);
+			NWL_NodeAttrSet(nusb, "Compatiable ID", BufferHw, 0);
 			ParseHwClass(nusb, Ids, IdsSize, BufferHw);
 		}
-		free(BufferHw);
 	}
 	SetupDiDestroyDeviceInfoList(Info);
 fail:

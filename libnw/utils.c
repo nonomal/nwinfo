@@ -28,7 +28,7 @@ BOOL NWL_IsAdmin(void)
 	return b;
 }
 
-DWORD NWL_ObtainPrivileges(LPCSTR privilege)
+DWORD NWL_ObtainPrivileges(LPWSTR privilege)
 {
 	HANDLE hToken;
 	TOKEN_PRIVILEGES tkp = { 0 };
@@ -36,7 +36,7 @@ DWORD NWL_ObtainPrivileges(LPCSTR privilege)
 	// Obtain required privileges
 	if (!OpenProcessToken(GetCurrentProcess(), TOKEN_ADJUST_PRIVILEGES | TOKEN_QUERY, &hToken))
 		return GetLastError();
-	res = LookupPrivilegeValueA(NULL, privilege, &tkp.Privileges[0].Luid);
+	res = LookupPrivilegeValueW(NULL, privilege, &tkp.Privileges[0].Luid);
 	if (!res)
 		return GetLastError();
 	tkp.PrivilegeCount = 1;
@@ -100,6 +100,8 @@ NWL_ReadMemory(PVOID buffer, DWORD_PTR address, DWORD length)
 {
 	if (!NWLC->NwDrv)
 		return FALSE;
+	if (address == 0) // Reject 0x0000
+		return FALSE;
 	if (phymem_read(NWLC->NwDrv, address, buffer, length, 1) == 0)
 		return FALSE;
 	return TRUE;
@@ -155,7 +157,7 @@ NWL_GetSystemFirmwareTable(DWORD FirmwareTableProviderSignature, DWORD FirmwareT
 {
 	UINT(WINAPI * NT6GetSystemFirmwareTable)
 		(DWORD FirmwareTableProviderSignature, DWORD FirmwareTableID, PVOID pFirmwareTableBuffer, DWORD BufferSize) = NULL;
-	HMODULE hMod = GetModuleHandleA("kernel32");
+	HMODULE hMod = GetModuleHandleW(L"kernel32");
 
 	if (hMod)
 		*(FARPROC*)&NT6GetSystemFirmwareTable = GetProcAddress(hMod, "GetSystemFirmwareTable");
@@ -167,6 +169,26 @@ NWL_GetSystemFirmwareTable(DWORD FirmwareTableProviderSignature, DWORD FirmwareT
 		return NT5GetSmbios(pFirmwareTableBuffer, BufferSize);
 
 	return 0;
+}
+
+struct RAW_SMBIOS_DATA*
+NWL_GetSmbios(void)
+{
+	struct RAW_SMBIOS_DATA* smBiosData = NULL;
+	DWORD smBiosDataSize = 0;
+	smBiosDataSize = NWL_GetSystemFirmwareTable('RSMB', 0, NULL, 0);
+	if (smBiosDataSize == 0)
+		return NULL;
+	smBiosData = (struct RAW_SMBIOS_DATA*)malloc(smBiosDataSize);
+	if (!smBiosData)
+		return NULL;
+	smBiosDataSize = NWL_GetSystemFirmwareTable('RSMB', 0, smBiosData, smBiosDataSize);
+	if (smBiosDataSize == 0)
+	{
+		free(smBiosData);
+		return NULL;
+	}
+	return smBiosData;
 }
 
 static struct acpi_rsdp_v2*
@@ -320,24 +342,6 @@ PVOID NWL_GetAcpiByAddr(DWORD_PTR Addr)
 	return ret;
 }
 
-DWORD
-NWL_GetFirmwareEnvironmentVariable(LPCSTR lpName, LPCSTR lpGuid,
-	PVOID pBuffer, DWORD nSize)
-{
-	DWORD(WINAPI * NT6GetFirmwareEnvironmentVariable)
-		(LPCSTR lpName, LPCSTR lpGuid,
-			PVOID pBuffer, DWORD nSize) = NULL;
-	HMODULE hMod = GetModuleHandleA("kernel32");
-
-	if (hMod)
-		*(FARPROC*)&NT6GetFirmwareEnvironmentVariable = GetProcAddress(hMod, "GetFirmwareEnvironmentVariableA");
-
-	if (NT6GetFirmwareEnvironmentVariable)
-		return NT6GetFirmwareEnvironmentVariable(lpName, lpGuid, pBuffer, nSize);
-	SetLastError(ERROR_INVALID_FUNCTION);
-	return 0;
-}
-
 UINT8
 NWL_AcpiChecksum(VOID* base, UINT size)
 {
@@ -349,42 +353,18 @@ NWL_AcpiChecksum(VOID* base, UINT size)
 	return ret;
 }
 
-VOID NWL_TrimString(CHAR* String)
-{
-	CHAR* Pos1 = String;
-	CHAR* Pos2 = String;
-	size_t Len = strlen(String);
-
-	while (Len > 0)
-	{
-		if (String[Len - 1] != ' ' && String[Len - 1] != '\t')
-			break;
-		String[Len - 1] = 0;
-		Len--;
-	}
-
-	while (*Pos1 == ' ' || *Pos1 == '\t')
-		Pos1++;
-
-	while (*Pos1)
-		*Pos2++ = *Pos1++;
-	*Pos2++ = 0;
-
-	return;
-}
-
-INT NWL_GetRegDwordValue(HKEY Key, LPCSTR SubKey, LPCSTR ValueName, DWORD* pValue)
+INT NWL_GetRegDwordValue(HKEY Key, LPCWSTR SubKey, LPCWSTR ValueName, DWORD* pValue)
 {
 	HKEY hKey;
 	DWORD Type;
 	DWORD Size;
 	LSTATUS lRet;
 	DWORD Value = 0;
-	lRet = RegOpenKeyExA(Key, SubKey, 0, KEY_QUERY_VALUE, &hKey);
+	lRet = RegOpenKeyExW(Key, SubKey, 0, KEY_QUERY_VALUE, &hKey);
 	if (ERROR_SUCCESS == lRet)
 	{
 		Size = sizeof(Value);
-		lRet = RegQueryValueExA(hKey, ValueName, NULL, &Type, (LPBYTE)&Value, &Size);
+		lRet = RegQueryValueExW(hKey, ValueName, NULL, &Type, (LPBYTE)&Value, &Size);
 		*pValue = Value;
 		RegCloseKey(hKey);
 		return 0;
@@ -392,37 +372,14 @@ INT NWL_GetRegDwordValue(HKEY Key, LPCSTR SubKey, LPCSTR ValueName, DWORD* pValu
 	return 1;
 }
 
-CHAR* NWL_GetRegSzValue(HKEY Key, LPCSTR SubKey, LPCSTR ValueName)
-{
-	HKEY hKey;
-	DWORD Type;
-	DWORD Size = 1024;
-	LSTATUS lRet;
-	CHAR* sRet = NULL;
-	lRet = RegOpenKeyExA(Key, SubKey, 0, KEY_QUERY_VALUE, &hKey);
-	if (lRet != ERROR_SUCCESS)
-		return NULL;
-	sRet = malloc(Size);
-	if (!sRet)
-		return NULL;
-	lRet = RegQueryValueExA(hKey, ValueName, NULL, &Type, (LPBYTE)sRet, &Size);
-	if (lRet != ERROR_SUCCESS)
-	{
-		free(sRet);
-		return NULL;
-	}
-	RegCloseKey(hKey);
-	return sRet;
-}
-
 HANDLE NWL_GetDiskHandleById(BOOL Cdrom, BOOL Write, DWORD Id)
 {
-	CHAR PhyPath[] = "\\\\.\\PhysicalDrive4294967295";
+	WCHAR PhyPath[28]; // L"\\\\.\\PhysicalDrive4294967295"
 	if (Cdrom)
-		snprintf(PhyPath, sizeof(PhyPath), "\\\\.\\CdRom%u", Id);
+		swprintf(PhyPath, 28, L"\\\\.\\CdRom%u", Id);
 	else
-		snprintf(PhyPath, sizeof(PhyPath), "\\\\.\\PhysicalDrive%u", Id);
-	return CreateFileA(PhyPath, Write ? (GENERIC_READ | GENERIC_WRITE) : GENERIC_READ,
+		swprintf(PhyPath, 28, L"\\\\.\\PhysicalDrive%u", Id);
+	return CreateFileW(PhyPath, Write ? (GENERIC_READ | GENERIC_WRITE) : GENERIC_READ,
 		FILE_SHARE_READ | FILE_SHARE_WRITE, 0, OPEN_EXISTING, FILE_ATTRIBUTE_SYSTEM, 0);
 }
 
@@ -445,264 +402,13 @@ LPCSTR NWL_GetBusTypeString(STORAGE_BUS_TYPE Type)
 	case BusTypeSd: return "SD";
 	case BusTypeMmc: return "MMC";
 	case BusTypeVirtual: return "Virtual";
-	case BusTypeFileBackedVirtual: return "FileBackedVirtual";
+	case BusTypeFileBackedVirtual: return "File";
 	case BusTypeSpaces: return "Spaces";
 	case BusTypeNvme: return "NVMe";
 	case BusTypeSCM: return "SCM";
 	case BusTypeUfs: return "UFS";
 	}
 	return "unknown";
-}
-
-static CHAR*
-IdsGetline(CHAR* Ids, DWORD IdsSize, DWORD* Offset)
-{
-	CHAR* Line = NULL;
-	DWORD i = 0, Len = 0;
-	if (*Offset >= IdsSize)
-		return NULL;
-	for (i = *Offset; i < IdsSize; i++)
-	{
-		if (Ids[i] == '\n' || Ids[i] == '\r')
-			break;
-	}
-	Len = i - *Offset;
-	Line = malloc((SIZE_T)Len + 1);
-	if (!Line)
-		return NULL;
-	memcpy(Line, Ids + *Offset, Len);
-	Line[Len] = 0;
-	*Offset += Len;
-	for (i = *Offset; i < IdsSize; i++, (*Offset)++)
-	{
-		if (Ids[i] != '\n' && Ids[i] != '\r')
-			break;
-	}
-	return Line;
-}
-
-VOID
-NWL_FindId(PNODE nd, CHAR* Ids, DWORD IdsSize, CONST CHAR* v, CONST CHAR* d, CONST CHAR* s, INT usb)
-{
-	DWORD Offset = 0;
-	CHAR* vLine = NULL;
-	CHAR* dLine = NULL;
-	CHAR* sLine = NULL;
-	if (!v || !d)
-		return;
-	vLine = IdsGetline(Ids, IdsSize, &Offset);
-	while (vLine)
-	{
-		if (!vLine[0] || vLine[0] == '#' || strlen(vLine) < 7)
-		{
-			free(vLine);
-			vLine = IdsGetline(Ids, IdsSize, &Offset);
-			continue;
-		}
-		if (_strnicmp(v, vLine, 4) != 0)
-		{
-			free(vLine);
-			vLine = IdsGetline(Ids, IdsSize, &Offset);
-			continue;
-		}
-		NWL_NodeAttrSet(nd, "Vendor", vLine + 6, 0);
-		free(vLine);
-		dLine = IdsGetline(Ids, IdsSize, &Offset);
-		while (dLine)
-		{
-			if (!dLine[0] || dLine[0] == '#')
-			{
-				free(dLine);
-				dLine = IdsGetline(Ids, IdsSize, &Offset);
-				continue;
-			}
-			if (dLine[0] != '\t' || strlen(dLine) < 8)
-			{
-				free(dLine);
-				break;
-			}
-			if (_strnicmp(d, dLine + 1, 4) != 0)
-			{
-				free(dLine);
-				dLine = IdsGetline(Ids, IdsSize, &Offset);
-				continue;
-			}
-			NWL_NodeAttrSet(nd, "Device", dLine + 7, 0);
-			free(dLine);
-			if (!s)
-				break;
-			sLine = IdsGetline(Ids, IdsSize, &Offset);
-			while (sLine)
-			{
-				if (!sLine[0] || sLine[0] == '#')
-				{
-					free(sLine);
-					sLine = IdsGetline(Ids, IdsSize, &Offset);
-					continue;
-				}
-				if (sLine[0] != '\t' || !sLine[1] || sLine[1] != '\t' || strlen(sLine) < 14)
-				{
-					free(sLine);
-					break;
-				}
-				if (_strnicmp(s, sLine + 2, 9) != 0)
-				{
-					free(sLine);
-					sLine = IdsGetline(Ids, IdsSize, &Offset);
-					continue;
-				}
-				NWL_NodeAttrSet(nd, usb ? "Interface" : "Subsys", sLine + 13, 0);
-				free(sLine);
-				break;
-			}
-			break;
-		}
-		break;
-	}
-}
-
-VOID
-NWL_FindClass(PNODE nd, CHAR* Ids, DWORD IdsSize, CONST CHAR* Class, INT usb)
-{
-	DWORD Offset = 0;
-	CHAR* vLine = NULL;
-	CHAR* dLine = NULL;
-	CHAR* sLine = NULL;
-	if (!Class)
-		return;
-	CONST CHAR* v = Class;
-	CONST CHAR* d = strlen(Class) >= 4 ? Class + 2 : NULL;
-	CONST CHAR* s = strlen(Class) >= 6 ? Class + 4 : NULL;
-	vLine = IdsGetline(Ids, IdsSize, &Offset);
-	while (vLine)
-	{
-		if (!vLine[0] || vLine[0] != 'C' || strlen(vLine) < 7 || vLine[1] != ' ')
-		{
-			free(vLine);
-			vLine = IdsGetline(Ids, IdsSize, &Offset);
-			continue;
-		}
-		if (_strnicmp(v, vLine + 2, 2) != 0)
-		{
-			free(vLine);
-			vLine = IdsGetline(Ids, IdsSize, &Offset);
-			continue;
-		}
-		NWL_NodeAttrSet(nd, "Class", vLine + 6, 0);
-		free(vLine);
-		if (!d)
-			goto out;
-		dLine = IdsGetline(Ids, IdsSize, &Offset);
-		while (dLine)
-		{
-			if (!dLine[0] || dLine[0] == '#')
-			{
-				free(dLine);
-				dLine = IdsGetline(Ids, IdsSize, &Offset);
-				continue;
-			}
-			if (dLine[0] != '\t' || strlen(dLine) < 6)
-			{
-				free(dLine);
-				break;
-			}
-			if (_strnicmp(d, dLine + 1, 2) != 0)
-			{
-				free(dLine);
-				dLine = IdsGetline(Ids, IdsSize, &Offset);
-				continue;
-			}
-			NWL_NodeAttrSet(nd, "Subclass", dLine + 5, 0);
-			free(dLine);
-			if (!s)
-				break;
-			sLine = IdsGetline(Ids, IdsSize, &Offset);
-			while (sLine)
-			{
-				if (!sLine[0] || sLine[0] == '#')
-				{
-					free(sLine);
-					sLine = IdsGetline(Ids, IdsSize, &Offset);
-					continue;
-				}
-				if (sLine[0] != '\t' || !sLine[1] || sLine[1] != '\t' || strlen(sLine) < 7)
-				{
-					free(sLine);
-					break;
-				}
-				if (_strnicmp(s, sLine + 2, 2) != 0)
-				{
-					free(sLine);
-					sLine = IdsGetline(Ids, IdsSize, &Offset);
-					continue;
-				}
-				NWL_NodeAttrSet(nd, usb ? "Protocol" : "Prog IF", sLine + 6, 0);
-				free(sLine);
-				break;
-			}
-			break;
-		}
-	out:
-		break;
-	}
-}
-
-CHAR* NWL_LoadFileToMemory(LPCSTR lpFileName, LPDWORD lpSize)
-{
-	HANDLE Fp = INVALID_HANDLE_VALUE;
-	CHAR* Ids = NULL;
-	DWORD dwSize = 0;
-	BOOL bRet = TRUE;
-	CHAR* FilePath = NWLC->NwBuf;
-	CHAR* p;
-	size_t i = 0;
-	if (!GetModuleFileNameA(NULL, FilePath, MAX_PATH) || strlen(FilePath) == 0)
-	{
-		fprintf(stderr, "GetModuleFileName failed\n");
-		goto fail;
-	}
-	p = strrchr(FilePath, '\\');
-	if (!p)
-	{
-		fprintf(stderr, "Invalid file path %s\n", FilePath);
-		goto fail;
-	}
-	p++;
-	strcpy_s(p, MAX_PATH - (p - FilePath), lpFileName);
-	Fp = CreateFileA(FilePath, GENERIC_READ, FILE_SHARE_READ, NULL, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
-	if (Fp == INVALID_HANDLE_VALUE)
-	{
-		fprintf(stderr, "Cannot open %s\n", FilePath);
-		goto fail;
-	}
-	dwSize = GetFileSize(Fp, NULL);
-	if (dwSize == INVALID_FILE_SIZE || dwSize == 0)
-	{
-		fprintf(stderr, "bad %s file\n", lpFileName);
-		goto fail;
-	}
-	Ids = malloc(dwSize);
-	if (!Ids)
-	{
-		fprintf(stderr, "out of memory\n");
-		goto fail;
-	}
-	bRet = ReadFile(Fp, Ids, dwSize, &dwSize, NULL);
-	if (bRet == FALSE)
-	{
-		fprintf(stderr, "pci.ids read error\n");
-		goto fail;
-	}
-	CloseHandle(Fp);
-	*lpSize = dwSize;
-	return Ids;
-fail:
-	if (Fp != INVALID_HANDLE_VALUE)
-		CloseHandle(Fp);
-	if (Ids)
-		free(Ids);
-	*lpSize = 0;
-	return NULL;
 }
 
 LPCSTR
@@ -715,18 +421,195 @@ NWL_GuidToStr(UCHAR Guid[16])
 	return GuidStr;
 }
 
-static CHAR Mbs[256] = { 0 };
+LPCSTR
+NWL_WinGuidToStr(BOOL bBracket, GUID* pGuid)
+{
+	static CHAR GuidStr[39] = { 0 };
+	snprintf(GuidStr, 39, "%s%08lX-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X%s",
+		bBracket ? "{" : "",
+		pGuid->Data1, pGuid->Data2, pGuid->Data3,
+		pGuid->Data4[0], pGuid->Data4[1], pGuid->Data4[2], pGuid->Data4[3],
+		pGuid->Data4[4], pGuid->Data4[5], pGuid->Data4[6], pGuid->Data4[7],
+		bBracket ? "}" : "");
+	return GuidStr;
+}
+
+BOOL
+NWL_StrToGuid(const CHAR* cchText, GUID* pGuid)
+{
+	CHAR p[37];
+	size_t len = strlen(cchText);
+	memset(pGuid, 0, sizeof(GUID));
+
+	if (len == 38 && cchText[0] == '{' && cchText[37] == '}')
+		memcpy(p, cchText + 1, 36);
+	else if (len == 36)
+		memcpy(p, cchText, 36);
+	else
+		return FALSE;
+	p[36] = '\0';
+	if (p[8] != '-' || p[13] != '-' || p[18] != '-' || p[23] != '-')
+		return FALSE;
+	p[8] = 0;
+	pGuid->Data1 = strtoul(p, NULL, 16);
+	p[13] = 0;
+	pGuid->Data2 = (unsigned short)strtoul(p + 9, NULL, 16);
+	p[18] = 0;
+	pGuid->Data3 = (unsigned short)strtoul(p + 14, NULL, 16);
+	pGuid->Data4[7] = (unsigned char)strtoul(p + 34, NULL, 16);
+	p[34] = 0;
+	pGuid->Data4[6] = (unsigned char)strtoul(p + 32, NULL, 16);
+	p[32] = 0;
+	pGuid->Data4[5] = (unsigned char)strtoul(p + 30, NULL, 16);
+	p[30] = 0;
+	pGuid->Data4[4] = (unsigned char)strtoul(p + 28, NULL, 16);
+	p[28] = 0;
+	pGuid->Data4[3] = (unsigned char)strtoul(p + 26, NULL, 16);
+	p[26] = 0;
+	pGuid->Data4[2] = (unsigned char)strtoul(p + 24, NULL, 16);
+	p[23] = 0;
+	pGuid->Data4[1] = (unsigned char)strtoul(p + 21, NULL, 16);
+	p[21] = 0;
+	pGuid->Data4[0] = (unsigned char)strtoul(p + 19, NULL, 16);
+	return TRUE;
+}
+
+struct NWL_MONITOR_CTX
+{
+	HMONITOR hMonitor;
+	LPCWSTR lpDevice;
+};
+
+static BOOL CALLBACK EnumMonIter(HMONITOR hMonitor, HDC hDC, LPRECT lpRect, LPARAM lParam)
+{
+	struct NWL_MONITOR_CTX* ctx = (struct NWL_MONITOR_CTX*)lParam;
+	MONITORINFOEXW mi = { .cbSize = sizeof(MONITORINFOEXW) };
+	if (GetMonitorInfoW(hMonitor, (LPMONITORINFO)&mi) && mi.szDevice[0] != '\0')
+	{
+		if (wcscmp(mi.szDevice, ctx->lpDevice) == 0)
+		{
+			ctx->hMonitor = hMonitor;
+			return FALSE;
+		}
+	}
+	return TRUE;
+}
+
+HMONITOR
+NWL_GetMonitorFromName(LPCWSTR lpDevice)
+{
+	struct NWL_MONITOR_CTX ctx = { 0 };
+	EnumDisplayMonitors(NULL, NULL, EnumMonIter, (LPARAM)&ctx);
+	return ctx.hMonitor;
+}
+
+#define SECPERMIN 60
+#define SECPERHOUR (60*SECPERMIN)
+#define SECPERDAY (24*SECPERHOUR)
+#define DAYSPERYEAR 365
+#define DAYSPER4YEARS (4*DAYSPERYEAR+1)
 
 LPCSTR
-NWL_WcsToMbs(PWCHAR Wcs)
+NWL_UnixTimeToStr(INT nix)
 {
-	size_t i = 0;
-	for (i = 0; i < 255; i++)
+	static CHAR buf[28];
+	UINT8 months[12] = { 31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31 };
+	INT daysEpoch;
+	UINT32 days;
+	UINT32 secsInDay;
+	UINT16 year;
+	UINT8 month;
+	UINT8 hour;
+
+	if (nix < 0)
+		daysEpoch = -(((INT64)(SECPERDAY) - nix - 1) / SECPERDAY);
+	else
+		daysEpoch = nix / SECPERDAY;
+
+	secsInDay = nix - daysEpoch * SECPERDAY;
+	days = daysEpoch + 69 * DAYSPERYEAR + 17;
+	year = 1901 + 4 * (days / DAYSPER4YEARS);
+	days %= DAYSPER4YEARS;
+	if (days / DAYSPERYEAR == 4)
 	{
-		if (Wcs[i] == 0 || !isprint(Wcs[i]) || Wcs[i] > 128)
-			break;
-		Mbs[i] = (CHAR)Wcs[i];
+		year += 3;
+		days -= 3 * DAYSPERYEAR;
 	}
-	Mbs[i] = 0;
-	return Mbs;
+	else
+	{
+		year += days / DAYSPERYEAR;
+		days %= DAYSPERYEAR;
+	}
+	for (month = 0; month < 12 && days >= (month == 1 && year % 4 == 0 ? 29U : months[month]); month++)
+		days -= (month == 1 && year % 4 == 0 ? 29U : months[month]);
+	hour = (secsInDay / SECPERHOUR);
+	secsInDay %= SECPERHOUR;
+	snprintf(buf, sizeof(buf), "%04u-%02u-%02u %02u:%02u:%02u (UTC)",
+		year, month + 1, days + 1, hour, secsInDay / SECPERMIN, secsInDay % SECPERMIN);
+	return buf;
+}
+
+static CHAR Utf8Buf[NWINFO_BUFSZ + 1];
+
+LPCSTR
+NWL_Ucs2ToUtf8(LPCWSTR src)
+{
+	size_t i;
+	CHAR* p = Utf8Buf;
+	ZeroMemory(Utf8Buf, sizeof(Utf8Buf));
+	for (i = 0; i < NWINFO_BUFSZ / 3; i++)
+	{
+		if (src[i] == 0x0000)
+			break;
+		else if (src[i] <= 0x007F)
+			*p++ = (CHAR)src[i];
+		else if (src[i] <= 0x07FF)
+		{
+			*p++ = (src[i] >> 6) | 0xC0;
+			*p++ = (src[i] & 0x3F) | 0x80;
+		}
+		else if (src[i] >= 0xD800 && src[i] <= 0xDFFF)
+		{
+			*p++ = 0;
+			break;
+		}
+		else
+		{
+			*p++ = (src[i] >> 12) | 0xE0;
+			*p++ = ((src[i] >> 6) & 0x3F) | 0x80;
+			*p++ = (src[i] & 0x3F) | 0x80;
+		}
+	}
+	return Utf8Buf;
+}
+
+static WCHAR Ucs2Buf[NWINFO_BUFSZ + 1];
+
+LPCWSTR NWL_Utf8ToUcs2(LPCSTR src)
+{
+	size_t i;
+	size_t j = 0;
+	WCHAR *p = Ucs2Buf;
+	ZeroMemory(Ucs2Buf, sizeof(Ucs2Buf));
+	for (i = 0; src[i] != '\0' && j < NWINFO_BUFSZ; )
+	{
+		if ((src[i] & 0x80) == 0)
+		{
+			p[j++] = (WCHAR)src[i++];
+		}
+		else if ((src[i] & 0xE0) == 0xC0)
+		{
+			p[j++] = (WCHAR)((0x1FU & src[i]) << 6) | (0x3FU & src[i + 1]);
+			i += 2;
+		}
+		else if ((src[i] & 0xF0) == 0xE0)
+		{
+			p[j++] = (WCHAR)((0x0FU & src[i]) << 12) | ((0x3FU & src[i + 1]) << 6) | (0x3FU & src[i + 2]);
+			i += 3;
+		}
+		else
+			break;
+	}
+	p[j] = L'\0';
+	return Ucs2Buf;
 }

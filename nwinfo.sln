@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.31410.357
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32901.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "nwinfo", "nwinfo.vcxproj", "{348208C4-74A1-4677-8573-6FC389C3AE40}"
 EndProject
@@ -9,7 +9,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libcpuid", "libcpuid\libcpu
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "libnw", "libnw\libnw.vcxproj", "{D0954ECF-A37A-4DE0-8D49-0D0505F56B29}"
 EndProject
-Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gnwinfo", "gnwinfo\gnwinfo.vcxproj", "{41E31F67-D67C-4699-A15A-67872363913A}"
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "winring0", "winring0\winring0.vcxproj", "{792BAF89-D4DA-4626-A147-52FC32BC77B2}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "gnwinfo", "gnwinfo\gnwinfo.vcxproj", "{C8356469-07C6-4366-A561-12C610BE1263}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "ryzenadj", "ryzenadj\ryzenadj.vcxproj", "{D1560601-A052-4567-A196-DF4FB90E34B4}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -29,10 +33,18 @@ Global
 		{D0954ECF-A37A-4DE0-8D49-0D0505F56B29}.Release|x64.Build.0 = Release|x64
 		{D0954ECF-A37A-4DE0-8D49-0D0505F56B29}.Release|x86.ActiveCfg = Release|Win32
 		{D0954ECF-A37A-4DE0-8D49-0D0505F56B29}.Release|x86.Build.0 = Release|Win32
-		{41E31F67-D67C-4699-A15A-67872363913A}.Release|x64.ActiveCfg = Release|x64
-		{41E31F67-D67C-4699-A15A-67872363913A}.Release|x64.Build.0 = Release|x64
-		{41E31F67-D67C-4699-A15A-67872363913A}.Release|x86.ActiveCfg = Release|Win32
-		{41E31F67-D67C-4699-A15A-67872363913A}.Release|x86.Build.0 = Release|Win32
+		{792BAF89-D4DA-4626-A147-52FC32BC77B2}.Release|x64.ActiveCfg = Release|x64
+		{792BAF89-D4DA-4626-A147-52FC32BC77B2}.Release|x64.Build.0 = Release|x64
+		{792BAF89-D4DA-4626-A147-52FC32BC77B2}.Release|x86.ActiveCfg = Release|Win32
+		{792BAF89-D4DA-4626-A147-52FC32BC77B2}.Release|x86.Build.0 = Release|Win32
+		{C8356469-07C6-4366-A561-12C610BE1263}.Release|x64.ActiveCfg = Release|x64
+		{C8356469-07C6-4366-A561-12C610BE1263}.Release|x64.Build.0 = Release|x64
+		{C8356469-07C6-4366-A561-12C610BE1263}.Release|x86.ActiveCfg = Release|Win32
+		{C8356469-07C6-4366-A561-12C610BE1263}.Release|x86.Build.0 = Release|Win32
+		{D1560601-A052-4567-A196-DF4FB90E34B4}.Release|x64.ActiveCfg = Release|x64
+		{D1560601-A052-4567-A196-DF4FB90E34B4}.Release|x64.Build.0 = Release|x64
+		{D1560601-A052-4567-A196-DF4FB90E34B4}.Release|x86.ActiveCfg = Release|Win32
+		{D1560601-A052-4567-A196-DF4FB90E34B4}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -5,67 +5,6 @@
 #include "libnw.h"
 #include "utils.h"
 
-typedef struct _UNICODE_STRING
-{
-	USHORT Length;
-	USHORT MaximumLength;
-	PWSTR Buffer;
-} UNICODE_STRING, *PUNICODE_STRING;
-
-typedef struct _IO_STATUS_BLOCK
-{
-	union
-	{
-		NTSTATUS Status;
-		PVOID Pointer;
-	};
-	ULONG_PTR Information;
-} IO_STATUS_BLOCK, * PIO_STATUS_BLOCK;
-
-typedef struct _OBJECT_ATTRIBUTES
-{
-	ULONG Length;
-	HANDLE RootDirectory;
-	PUNICODE_STRING ObjectName;
-	ULONG Attributes;
-	PVOID SecurityDescriptor;
-	PVOID SecurityQualityOfService;
-} OBJECT_ATTRIBUTES, *POBJECT_ATTRIBUTES;
-
-#define InitializeObjectAttributes( p, n, a, r, s ) { \
-    (p)->Length = sizeof( OBJECT_ATTRIBUTES ); \
-    (p)->RootDirectory = r; \
-    (p)->Attributes = a; \
-    (p)->ObjectName = n; \
-    (p)->SecurityDescriptor = s; \
-    (p)->SecurityQualityOfService = NULL; \
-}
-
-#define FILE_SUPERSEDE                  0x00000000
-#define FILE_OPEN                       0x00000001
-#define FILE_CREATE                     0x00000002
-#define FILE_OPEN_IF                    0x00000003
-#define FILE_OVERWRITE                  0x00000004
-#define FILE_OVERWRITE_IF               0x00000005
-#define FILE_MAXIMUM_DISPOSITION        0x00000005
-
-#define NT_SUCCESS(Status) (((NTSTATUS)(Status)) >= 0)
-
-typedef enum _OBJECT_INFORMATION_CLASS
-{
-	ObjectBasicInformation,
-	ObjectNameInformation,
-	ObjectTypeInformation,
-	ObjectAllInformation,
-	ObjectDataInformation
-} OBJECT_INFORMATION_CLASS;
-
-typedef struct _OBJECT_NAME_INFORMATION
-{
-	UNICODE_STRING Name;
-	WCHAR NameBuffer[0];
-} OBJECT_NAME_INFORMATION, *POBJECT_NAME_INFORMATION;
-
 HANDLE
 NWL_NtCreateFile(LPCWSTR lpFileName, BOOL bWrite)
 {
@@ -75,12 +14,12 @@ NWL_NtCreateFile(LPCWSTR lpFileName, BOOL bWrite)
 	ACCESS_MASK mask;
 	IO_STATUS_BLOCK status;
 	OBJECT_ATTRIBUTES attributes = { 0 };
-	VOID(NTAPI * OsRtlInitUnicodeString)(PUNICODE_STRING Src, PCWSTR Dst) = NULL;
+	VOID(NTAPI * OsRtlInitUnicodeString)(PUNICODE_STRING Dst, PCWSTR Src) = NULL;
 	NTSTATUS(NTAPI * OsNtCreateFile)(PHANDLE FileHandle, ACCESS_MASK DesiredAccess,
 		POBJECT_ATTRIBUTES ObjectAttributes, PIO_STATUS_BLOCK IoStatusBlock,
 		PLARGE_INTEGER AllocationSize, ULONG FileAttributes, ULONG ShareAccess,
 		ULONG CreateDisposition, ULONG CreateOptions, PVOID EaBuffer, ULONG EaLength) = NULL;
-	HMODULE hModule = LoadLibraryA("ntdll.dll");
+	HMODULE hModule = GetModuleHandleW(L"ntdll");
 	if (!hModule)
 		return INVALID_HANDLE_VALUE;
 	*(FARPROC*)&OsNtCreateFile = GetProcAddress(hModule, "NtCreateFile");
@@ -103,29 +42,90 @@ NWL_NtCreateFile(LPCWSTR lpFileName, BOOL bWrite)
 	return NULL;
 }
 
-VOID* NWL_NtGetRegValue(HKEY Key, LPCWSTR lpSubKey, LPCWSTR lpValueName, LPDWORD lpType)
+#define MB_TO_BYTES(mb) (1024ULL * 1024ULL * mb)
+BOOL
+NWL_NtCreatePageFile(WCHAR wDrive, LPCWSTR lpPath, UINT64 minSizeInMb, UINT64 maxSizeInMb)
 {
-	HKEY hKey;
+	NTSTATUS rc;
+	UNICODE_STRING str;
+	WCHAR device[] = L"C:";
+	WCHAR buf[MAX_PATH];
+	ULARGE_INTEGER minSize, maxSize;
+	VOID(NTAPI * OsRtlInitUnicodeString)(PUNICODE_STRING Dst, PCWSTR Src) = NULL;
+	NTSTATUS(NTAPI * NtCreatePagingFile)(PUNICODE_STRING Path, PULARGE_INTEGER MinSize, PULARGE_INTEGER MaxSize, ULONG Priority) = NULL;
+	HMODULE hModule = GetModuleHandleW(L"ntdll");
+	if (!hModule)
+		return FALSE;
+	*(FARPROC*)&NtCreatePagingFile = GetProcAddress(hModule, "NtCreatePagingFile");
+	if (!NtCreatePagingFile)
+		return FALSE;
+	*(FARPROC*)&OsRtlInitUnicodeString = GetProcAddress(hModule, "RtlInitUnicodeString");
+	if (!OsRtlInitUnicodeString)
+		return FALSE;
+	if (NWL_ObtainPrivileges(SE_CREATE_PAGEFILE_NAME) != ERROR_SUCCESS)
+		return FALSE;
+	if (maxSizeInMb < minSizeInMb)
+		maxSizeInMb = minSizeInMb;
+	if (lpPath == NULL)
+		lpPath = L"\\pagefile.sys";
+	device[0] = towupper(wDrive);
+	if (QueryDosDeviceW(device, buf, MAX_PATH) > 0)
+		wcscat_s(buf, MAX_PATH, lpPath);
+	else
+		return FALSE;
+	OsRtlInitUnicodeString(&str, buf);
+	minSize.QuadPart = MB_TO_BYTES(minSizeInMb);
+	maxSize.QuadPart = MB_TO_BYTES(maxSizeInMb);
+	rc = NtCreatePagingFile(&str, &minSize, &maxSize, 0);
+	if (!NT_SUCCESS(rc))
+		return FALSE;
+	return TRUE;
+}
+
+VOID* NWL_NtGetRegValue(HKEY Key, LPCWSTR lpSubKey, LPCWSTR lpValueName, LPDWORD lpdwSize, LPDWORD lpType)
+{
+	HKEY hKey = NULL;
 	DWORD cbSize = 0;
 	LSTATUS lRet;
 	VOID* lpData = NULL;
+
 	lRet = RegOpenKeyExW(Key, lpSubKey, 0, KEY_QUERY_VALUE, &hKey);
 	if (lRet != ERROR_SUCCESS)
-		return NULL;
+		goto fail;
 	lRet = RegQueryValueExW(hKey, lpValueName, NULL, lpType, NULL, &cbSize);
 	if (lRet != ERROR_SUCCESS || cbSize == 0)
-		return NULL;
+		goto fail;
 	lpData = malloc(cbSize);
 	if (!lpData)
-		return NULL;
+		goto fail;
 	lRet = RegQueryValueExW(hKey, lpValueName, NULL, lpType, lpData, &cbSize);
 	if (lRet != ERROR_SUCCESS)
-	{
-		free(lpData);
-		return NULL;
-	}
+		goto fail;
 	RegCloseKey(hKey);
+	if (lpdwSize)
+		*lpdwSize = cbSize;
 	return lpData;
+fail:
+	if (hKey)
+		RegCloseKey(hKey);
+	if (lpData)
+		free(lpData);
+	if (lpdwSize)
+		*lpdwSize = 0;
+	return NULL;
+}
+
+BOOL
+NWL_NtSetRegValue(HKEY Key, LPCWSTR lpSubKey, LPCWSTR lpValueName, LPCVOID lpData, DWORD dwSize, DWORD dwType)
+{
+	HKEY hKey = NULL;
+	LSTATUS lRet;
+	lRet = RegOpenKeyExW(Key, lpSubKey, 0, KEY_SET_VALUE, &hKey);
+	if (lRet != ERROR_SUCCESS)
+		return FALSE;
+	lRet = RegSetValueExW(hKey, lpValueName, 0, dwType, lpData, dwSize);
+	RegCloseKey(hKey);
+	return lRet == ERROR_SUCCESS;
 }
 
 LPCSTR NWL_NtGetPathFromHandle(HANDLE hFile)
@@ -135,7 +135,7 @@ LPCSTR NWL_NtGetPathFromHandle(HANDLE hFile)
 	PUNICODE_STRING puName = NULL;
 	NTSTATUS (NTAPI *OsNtQueryObject)(HANDLE Handle, OBJECT_INFORMATION_CLASS Info,
 		PVOID Buffer, ULONG BufferSize, PULONG ReturnLength) = NULL;
-	HMODULE hModule = LoadLibraryA("ntdll.dll");
+	HMODULE hModule = GetModuleHandleW(L"ntdll");
 	if (!hModule || !hFile || hFile == INVALID_HANDLE_VALUE)
 		return NULL;
 	*(FARPROC*)&OsNtQueryObject = GetProcAddress(hModule, "NtQueryObject");
@@ -145,5 +145,50 @@ LPCSTR NWL_NtGetPathFromHandle(HANDLE hFile)
 	puName = &((POBJECT_NAME_INFORMATION)tmp)->Name;
 	if (!puName->Length || !puName->Buffer)
 		return NULL;
-	return NWL_WcsToMbs(puName->Buffer);
+	return NWL_Ucs2ToUtf8(puName->Buffer);
+}
+
+BOOL NWL_NtQuerySystemInformation(SYSTEM_INFORMATION_CLASS SystemInformationClass,
+	PVOID SystemInformation, ULONG SystemInformationLength, PULONG ReturnLength)
+{
+	NTSTATUS (NTAPI * OsNtQuerySystemInformation)(SYSTEM_INFORMATION_CLASS SystemInformationClass,
+				PVOID SystemInformation, ULONG SystemInformationLength, PULONG ReturnLength) = NULL;
+	HMODULE hModule = GetModuleHandleW(L"ntdll");
+	if (!hModule)
+		return FALSE;
+	*(FARPROC*)&OsNtQuerySystemInformation = GetProcAddress(hModule, "NtQuerySystemInformation");
+	if (!OsNtQuerySystemInformation)
+		return FALSE;
+	return NT_SUCCESS(OsNtQuerySystemInformation(SystemInformationClass, SystemInformation, SystemInformationLength, ReturnLength));
+}
+
+BOOL NWL_NtSetSystemInformation(SYSTEM_INFORMATION_CLASS SystemInformationClass,
+	PVOID SystemInformation, ULONG SystemInformationLength)
+{
+	NTSTATUS(NTAPI * OsNtSetSystemInformation)(SYSTEM_INFORMATION_CLASS SystemInformationClass,
+		PVOID SystemInformation, ULONG SystemInformationLength) = NULL;
+	HMODULE hModule = GetModuleHandleW(L"ntdll");
+	if (!hModule)
+		return FALSE;
+	*(FARPROC*)&OsNtSetSystemInformation = GetProcAddress(hModule, "NtSetSystemInformation");
+	if (!OsNtSetSystemInformation)
+		return FALSE;
+	return NT_SUCCESS(OsNtSetSystemInformation(SystemInformationClass, SystemInformation, SystemInformationLength));
+}
+
+VOID NWL_NtGetVersion(LPOSVERSIONINFOEXW osInfo)
+{
+	NTSTATUS(WINAPI * RtlGetVersion)(LPOSVERSIONINFOEXW) = NULL;
+	HMODULE hMod = GetModuleHandleW(L"ntdll");
+
+	ZeroMemory(osInfo, sizeof(OSVERSIONINFOEXW));
+
+	if (hMod)
+		*(FARPROC*)&RtlGetVersion = GetProcAddress(hMod, "RtlGetVersion");
+
+	if (RtlGetVersion)
+	{
+		osInfo->dwOSVersionInfoSize = sizeof(OSVERSIONINFOEXW);
+		RtlGetVersion(osInfo);
+	}
 }

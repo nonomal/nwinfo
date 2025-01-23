@@ -1,6 +1,5 @@
 // SPDX-License-Identifier: Unlicense
 
-
 #include "libnw.h"
 #include "utils.h"
 #include "acpi.h"
@@ -8,10 +7,10 @@
 static void
 PrintU8Str(PNODE pNode, LPCSTR Key, UINT8 *Str, DWORD Len)
 {
-	DWORD i = 0;
-	NWLC->NwBuf[0] = '\0';
-	for (i = 0; i < Len; i++)
-		snprintf(NWLC->NwBuf, NWINFO_BUFSZ, "%s%c", NWLC->NwBuf, Str[i]);
+	if (Len >= NWINFO_BUFSZ)
+		Len = NWINFO_BUFSZ - 1;
+	memcpy(NWLC->NwBuf, Str, Len);
+	NWLC->NwBuf[Len] = 0;
 	NWL_NodeAttrSet(pNode, Key, NWLC->NwBuf, 0);
 }
 
@@ -61,10 +60,10 @@ PrintWPBT(PNODE pNode, struct acpi_table_header* Hdr)
 	if (Hdr->length < sizeof(struct acpi_wpbt))
 		return;
 	NWL_NodeAttrSetf(pNode, "Platform Binary", 0, "@0x%llx<0x%x>", wpbt->binary_addr, wpbt->binary_size);
-	NWL_NodeAttrSetf(pNode, "Binary Content", 0, "%s, %s\n", (wpbt->content_layout == 1) ? "PE" : "Unknown",
+	NWL_NodeAttrSetf(pNode, "Binary Content", 0, "%s, %s", (wpbt->content_layout == 1) ? "PE" : "Unknown",
 		(wpbt->content_type == 1) ? "Native Application" : "unknown");
 	if (wpbt->cmdline_length && wpbt->cmdline[0])
-		NWL_NodeAttrSetf(pNode, "Cmdline", 0, "%wS\n", wpbt->cmdline);
+		NWL_NodeAttrSet(pNode, "Cmdline", NWL_Ucs2ToUtf8(wpbt->cmdline), 0);
 }
 
 static const CHAR*
