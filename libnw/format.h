@@ -2,6 +2,7 @@
 #pragma once
 
 #include <stdio.h>
+#define VC_EXTRALEAN
 #include <windows.h>
 
 #define NFLG_PLACEHOLDER		0x1		// Node is a placeholder with no attributes
@@ -17,6 +18,7 @@
 #define NAFLG_FMT_NUMERIC		0x0200
 #define NAFLG_FMT_NEED_QUOTE	0x0400
 #define NAFLG_FMT_HUMAN_SIZE	0x0800
+#define NAFLG_FMT_SENSITIVE		0x1000
 
 #define NAFLG_FMT_IPADDR		(NAFLG_FMT_NEED_QUOTE | NAFLG_FMT_STRING)
 #define NAFLG_FMT_GUID			(NAFLG_FMT_NEED_QUOTE | NAFLG_FMT_STRING)
@@ -56,9 +58,10 @@ INT NWL_NodeDepth(PNODE node);
 INT NWL_NodeChildCount(PNODE node);
 INT NWL_NodeAppendChild(PNODE parent, PNODE child);
 PNODE NWL_NodeAppendNew(PNODE parent, LPCSTR name, INT flags);
+PNODE NWL_NodeGetChild(PNODE parent, LPCSTR name);
 
 INT NWL_NodeAttrCount(PNODE node);
-LPSTR NWL_NodeAttrGet(PNODE node, LPCSTR key);
+LPCSTR NWL_NodeAttrGet(PNODE node, LPCSTR key);
 PNODE_ATT NWL_NodeAttrSet(PNODE node, LPCSTR key, LPCSTR value, INT flags);
 PNODE_ATT
 NWL_NodeAttrSetf(PNODE node, LPCSTR key, INT flags, LPCSTR _Printf_format_string_ format, ...);
@@ -66,6 +69,5 @@ NWL_NodeAttrSetf(PNODE node, LPCSTR key, INT flags, LPCSTR _Printf_format_string
 #define NWL_NodeAttrSetBool(node, key, value, flags) \
 	NWL_NodeAttrSet(node, key, (value ? "Yes" : "No"), flags | NAFLG_FMT_BOOLEAN)
 
-INT NWL_NodeToJson(PNODE node, FILE* file, INT flags);
-INT NWL_NodeToYaml(PNODE node, FILE* file, INT flags);
-INT NWL_NodeToLua(PNODE node, FILE* file, INT flags);
+PNODE_ATT NWL_NodeAttrSetMulti(PNODE node, LPCSTR key, LPCSTR value, int flags);
+VOID NWL_NodeAppendMultiSz(LPSTR* lpmszMulti, LPCSTR szNew);

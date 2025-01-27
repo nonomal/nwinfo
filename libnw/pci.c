@@ -8,95 +8,61 @@
 #include "libnw.h"
 #include "utils.h"
 
-static int
-ParseHwid(PNODE nd, CHAR* Ids, DWORD IdsSize, const CHAR *Hwid)
-{
-	CHAR VendorID[5] = { 0 };
-	CHAR DeviceID[5] = { 0 };
-	CHAR Subsys[10] = { 0 };
-	// PCI\VEN_XXXX&DEV_XXXX
-	if (!Hwid || strlen(Hwid) < 21)
-		return 0;
-	if (_strnicmp(Hwid, "PCI\\VEN_", 8) != 0)
-		return 0;
-	snprintf(VendorID, 5, "%s", Hwid + 8);
-	if (_strnicmp(Hwid + 12, "&DEV_", 5) != 0)
-		return 0;
-	snprintf(DeviceID, 5, "%s", Hwid + 17);
-	// PCI\VEN_XXXX&DEV_XXXX&SUBSYS_XXXXXXXX
-	if (strlen(Hwid) < 37 || _strnicmp(Hwid + 21, "&SUBSYS_", 8) != 0)
-	{
-		NWL_FindId(nd, Ids, IdsSize, VendorID, DeviceID, NULL, 0);
-		return 1;
-	}
-	snprintf(Subsys, 5, "%s", Hwid + 29);
-	snprintf(Subsys + 4, 6, " %s", Hwid + 33);
-	NWL_FindId(nd, Ids, IdsSize, VendorID, DeviceID, Subsys, 0);
-	return 1;
-}
-
-PNODE NW_Pci(VOID)
+PNODE NWL_EnumPci(PNODE pNode, LPCSTR pciClass)
 {
 	HDEVINFO Info = NULL;
 	DWORD i = 0;
 	SP_DEVINFO_DATA DeviceInfoData = { .cbSize = sizeof(SP_DEVINFO_DATA) };
 	DWORD Flags = DIGCF_PRESENT | DIGCF_ALLCLASSES;
-	CHAR* Ids = NULL;
 	DWORD IdsSize = 0;
-	PNODE node = NWL_NodeAlloc("PCI", NFLG_TABLE);
-	if (NWLC->PciInfo)
-		NWL_NodeAppendChild(NWLC->NwRoot, node);
-	Ids = NWL_LoadFileToMemory("pci.ids", &IdsSize);
-	Info = SetupDiGetClassDevsExA(NULL, "PCI", NULL, Flags, NULL, NULL, NULL);
+	CHAR* Ids = NWL_LoadIdsToMemory(L"pci.ids", &IdsSize);
+	Info = SetupDiGetClassDevsW(NULL, L"PCI", NULL, Flags);
 	if (Info == INVALID_HANDLE_VALUE)
 	{
-		fprintf(stderr, "SetupDiGetClassDevs failed.\n");
+		NWL_NodeAppendMultiSz(&NWLC->ErrLog, "SetupDiGetClassDevs failed");
 		goto fail;
 	}
 	for (i = 0; SetupDiEnumDeviceInfo(Info, i, &DeviceInfoData); i++)
 	{
-		CHAR* BufferHw = NULL;
-		DWORD BufferHwLen = 0;
-		CHAR* p = NULL;
-		size_t pLen = 0;
 		CHAR HwClass[7] = { 0 };
 		PNODE npci;
-		SetupDiGetDeviceRegistryPropertyA(Info, &DeviceInfoData, SPDRP_HARDWAREID, NULL, NULL, 0, &BufferHwLen);
-		if (BufferHwLen == 0)
+		if (!SetupDiGetDeviceRegistryPropertyW(Info, &DeviceInfoData,
+			SPDRP_HARDWAREID, NULL, (PBYTE)NWLC->NwBufW, NWINFO_BUFSZB, NULL))
 			continue;
-		BufferHw = malloc(BufferHwLen);
-		if (!BufferHw)
-			continue;
-		p = BufferHw;
-		if (!SetupDiGetDeviceRegistryPropertyA(Info, &DeviceInfoData, SPDRP_HARDWAREID, NULL, BufferHw, BufferHwLen, NULL))
-			goto next_device;
-		while (p[0])
+		for (LPCWSTR p = NWLC->NwBufW; p[0]; p += wcslen(p) + 1)
 		{
-			pLen = strlen(p);
 			//PCI\VEN_XXXX&DEV_XXXX&CC_XXXXXX
-			if (pLen >= 29 && _strnicmp(p + 21, "&CC_", 4) == 0) {
-				snprintf(HwClass, 7, "%s", p + 25);
+			LPCWSTR s = wcsstr(p, L"&CC_");
+			if (s != NULL)
+			{
+				snprintf(HwClass, 7, "%ls", s + 4);
 				break;
 			}
-			p += pLen + 1;
 		}
-		if (NWLC->PciClass)
+		if (pciClass)
 		{
-			size_t PciClassLen = strlen(NWLC->PciClass);
+			size_t PciClassLen = strlen(pciClass);
 			if (PciClassLen > 6)
 				PciClassLen = 6;
-			if (_strnicmp(NWLC->PciClass, HwClass, PciClassLen) != 0)
-				goto next_device;
+			if (_strnicmp(pciClass, HwClass, PciClassLen) != 0)
+				continue;
 		}
-		npci = NWL_NodeAppendNew(node, "Device", NFLG_TABLE_ROW);
-		NWL_NodeAttrSet(npci, "HWID", BufferHw, 0);
+		npci = NWL_NodeAppendNew(pNode, "Device", NFLG_TABLE_ROW);
+		NWL_NodeAttrSet(npci, "HWID", NWL_Ucs2ToUtf8(NWLC->NwBufW), 0);
+		NWL_NodeAttrSet(npci, "Class Code", HwClass, 0);
 		NWL_FindClass(npci, Ids, IdsSize, HwClass, 0);
-		ParseHwid(npci, Ids, IdsSize, BufferHw);
-	next_device:
-		free(BufferHw);
+		NWL_ParseHwid(npci, Ids, IdsSize, NWLC->NwBufW, 0);
 	}
 	SetupDiDestroyDeviceInfoList(Info);
 fail:
 	free(Ids);
-	return node;
+	return pNode;
+}
+
+PNODE NW_Pci(VOID)
+{
+	PNODE node = NWL_NodeAlloc("PCI", NFLG_TABLE);
+	if (NWLC->PciInfo)
+		NWL_NodeAppendChild(NWLC->NwRoot, node);
+	return NWL_EnumPci(node, NWLC->PciClass);
 }

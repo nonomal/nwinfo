@@ -1,68 +1,52 @@
-﻿//{{NO_DEPENDENCIES}}
-// Microsoft Visual C++ 生成的包含文件。
-// 供 gnwinfo.rc 使用
+//{{NO_DEPENDENCIES}}
 //
-#define IDS_APP_TITLE                   101
-#define IDC_MAIN_MENU                   102
+#define IDI_ICON1                       101
 
-#define IDM_RELOAD                      103
-#define IDM_EXPORT                      104
-#define IDM_EXIT                        105
+#define IDR_PNG_MIN                     110
 
-#define IDM_HOMEPAGE                    106
-#define IDM_ABOUT                       107
+#define IDR_PNG_CD                      110
+#define IDR_PNG_CLOSE                   111
+#define IDR_PNG_CPU                     112
+#define IDR_PNG_CPUID                   113
+#define IDR_PNG_DISK                    114
+#define IDR_PNG_DISPLAY                 115
+#define IDR_PNG_FIRMWARE                116
+#define IDR_PNG_DIR                     117
+#define IDR_PNG_INFO                    118
+#define IDR_PNG_MEMORY                  119
+#define IDR_PNG_NETWORK                 120
+#define IDR_PNG_OS                      121
+#define IDR_PNG_PC                      122
+#define IDR_PNG_REFRESH                 123
+#define IDR_PNG_SETTINGS                124
+#define IDR_PNG_SMART                   125
+#define IDR_PNG_BATTERY                 126
+#define IDR_PNG_PCI                     127
+#define IDR_PNG_MM                      128
+#define IDR_PNG_DMI                     129
+#define IDR_PNG_ROCKET                  130
+#define IDR_PNG_EDIT                    131
+#define IDR_PNG_ETH                     132
+#define IDR_PNG_WLAN                    133
+#define IDR_PNG_MONITOR                 134
+#define IDR_PNG_GPU                     135
 
-#define IDD_MAIN_DIALOG                 130
-#define IDD_ABOUT_DIALOG                131
+#define IDR_PNG_MAX                     136
 
-#define IDI_ICON                        140
-#define IDI_ICON_TVN_ACPI               141
-#define IDI_ICON_TVN_BAT                142
-#define IDI_ICON_TVN_CPU                143
-#define IDI_ICON_TVN_DISK               144
-#define IDI_ICON_TVN_EDID               145
-#define IDI_ICON_TVN_NET                146
-#define IDI_ICON_TVN_PCI                147
-#define IDI_ICON_TVN_DMI                148
-#define IDI_ICON_TVN_SPD                149
-#define IDI_ICON_TVN_SYS                150
-#define IDI_ICON_TVN_USB                151
-
-#define IDI_ICON_TVD_USB                152
-#define IDI_ICON_TVD_ENC                153
-#define IDI_ICON_TVD_HDD                154
-#define IDI_ICON_TVD_FW                 155
-#define IDI_ICON_TVD_MM                 156
-#define IDI_ICON_TVD_NE                 157
-#define IDI_ICON_TVD_NW                 158
-#define IDI_ICON_TVD_HLP                159
-#define IDI_ICON_TVD_RMD                160
-#define IDI_ICON_TVD_PC                 161
-#define IDI_ICON_TVD_EFI                162
-#define IDI_ICON_TVD_EXIT               163
-#define IDI_ICON_TVD_DOC                164
-#define IDI_ICON_TVD_INF                165
-#define IDI_ICON_TVD_LNK                166
-#define IDI_ICON_TVD_REL                167
-#define IDI_ICON_TVD_TREE               168
-#define IDI_ICON_TVD_HID                169
-#define IDI_ICON_TVD_ISO                170
-
-#define IDI_ICON_MAX                    170
-
-#define IDC_ABOUT_ICON                  1001
-#define IDC_ABOUT_TEXT                  1002
-#define IDC_MAIN_TREE                   1003
-#define IDC_MAIN_LIST                   1004
+#define IDT_TIMER_1S                    2001
+#define IDT_TIMER_1M                    2002
+#define IDT_TIMER_DISK                  2003
+#define IDT_TIMER_DISPLAY               2004
+#define IDT_TIMER_POWER                 2005
+#define IDT_TIMER_SMB                   2006
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NO_MFC                     1
-#define _APS_NEXT_RESOURCE_VALUE        171
-#define _APS_NEXT_COMMAND_VALUE         32771
-#define _APS_NEXT_CONTROL_VALUE         1005
-#define _APS_NEXT_SYMED_VALUE           112
+#define _APS_NEXT_RESOURCE_VALUE        103
+#define _APS_NEXT_COMMAND_VALUE         40001
+#define _APS_NEXT_CONTROL_VALUE         1001
+#define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif

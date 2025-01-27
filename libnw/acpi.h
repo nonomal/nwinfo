@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 #pragma once
 
+#define VC_EXTRALEAN
 #include <windows.h>
 
 #pragma pack(1)
@@ -108,7 +109,7 @@ struct acpi_wpbt
 	UINT64 binary_addr;
 	/* Description of the layout of the handoff memory buffer.
 	 * Possible values include:
-	 * 1 ¨C Image location points to a single
+	 * 1 - Image location points to a single
 	 *     Portable Executable (PE) image at
 	 *     offset 0 of the specified memory
 	 *     location. The image is a flat image
@@ -119,7 +120,7 @@ struct acpi_wpbt
 	/* Description of the content of the binary
 	 * image and the usage model of the
 	 * platform binary. Possible values include:
-	 * 1 ¨C The platform binary is a native usermode application
+	 * 1 - The platform binary is a native usermode application
 	 *     that should be executed by the Windows Session
 	 *     Manager during operating system initialization.
 	 */

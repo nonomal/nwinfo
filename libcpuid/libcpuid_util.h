@@ -26,7 +26,10 @@
 #ifndef __LIBCPUID_UTIL_H__
 #define __LIBCPUID_UTIL_H__
 
+#include "libcpuid_internal.h"
+
 #define COUNT_OF(array) (sizeof(array) / sizeof(array[0]))
+#define UNUSED(x) (void)(x)
 
 struct feature_map_t {
 	unsigned bit;
@@ -41,13 +44,17 @@ struct match_entry_t {
 	int ncores, l2cache, l3cache, brand_code;
 	uint64_t model_bits;
 	int model_code;
-	char name[32];
+	char name[CODENAME_STR_MAX];
 };
 
 // returns the match score:
 int match_cpu_codename(const struct match_entry_t* matchtable, int count,
                        struct cpu_id_t* data, int brand_code, uint64_t bits,
                        int model_code);
+
+#define warnf(...)
+#define debugf(...)
+#define debug_print_lbits(...)
 
 /*
  * Seek for a pattern in `haystack'.
@@ -74,7 +81,7 @@ int match_all(uint64_t bits, uint64_t mask);
 /*
  * Sets the current errno
  */
-int set_error(cpu_error_t err);
+int cpuid_set_error(cpu_error_t err);
 
 /*
  * Manage cpu_affinity_mask_t type
@@ -94,5 +101,20 @@ bool get_affinity_mask_bit(logical_cpu_t logical_cpu, cpu_affinity_mask_t *affin
 
 /* set bit corresponding to 'logical_cpu' to '0' */
 void clear_affinity_mask_bit(logical_cpu_t logical_cpu, cpu_affinity_mask_t *affinity_mask);
+
+/* assign cache values in cpu_id_t type */
+void assign_cache_data(uint8_t on, cache_type_t cache, int size, int assoc, int linesize, struct cpu_id_t* data);
+
+/* generic way to retrieve core count for x86 CPUs */
+void decode_number_of_cores_x86(struct cpu_raw_data_t* raw, struct cpu_id_t* data);
+
+/* generic way to retrieve cache topology for x86 CPUs */
+void decode_deterministic_cache_info_x86(uint32_t cache_regs[][NUM_REGS],
+                                         uint8_t subleaf_count,
+                                         struct cpu_id_t* data,
+                                         struct internal_id_info_t* internal);
+
+/* generic way to get microarchitecture levels for x86 CPUs */
+void decode_architecture_version_x86(struct cpu_id_t* data);
 
 #endif /* __LIBCPUID_UTIL_H__ */

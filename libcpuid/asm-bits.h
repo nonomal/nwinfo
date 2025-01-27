@@ -51,12 +51,12 @@
 #if !defined(PLATFORM_X86)
 #	define PLATFORM_X86
 #endif
-#elif defined(__ARMEL__)
+#elif defined(__arm__)
 #if !defined(PLATFORM_ARM)
 #	define PLATFORM_ARM
 #endif
 #elif defined(__aarch64__)
-#if !defined(PLATFORM_ARM)
+#if !defined(PLATFORM_AARCH64)
 #	define PLATFORM_AARCH64
 #endif
 #endif
@@ -66,6 +66,18 @@
 	(defined(COMPILER_MICROSOFT) && defined(PLATFORM_X86))
 #	define INLINE_ASM_SUPPORTED
 #endif
+
+#ifdef INLINE_ASM_SUPPORTED
+#  if defined(COMPILER_GCC) || defined(COMPILER_CLANG)
+#    define cpu_exec_mrs(reg_name, reg_value) __asm __volatile("mrs %0, " reg_name : "=r" (reg_value))
+#  elif defined(COMPILER_MICROSOFT)
+#    define cpu_exec_mrs(reg_name, reg_value) __asm { mrs reg_value, reg_name }
+#  else
+#    error "Unsupported compiler"
+#  endif /* COMPILER */
+# else
+#    define cpu_exec_mrs(reg_name, reg_value) /* no-op */
+#endif /* INLINE_ASM_SUPPORTED */
 
 int cpuid_exists_by_eflags(void);
 void exec_cpuid(uint32_t *regs);

@@ -26,8 +26,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include <ctype.h>
 #include "libcpuid.h"
+#include "libcpuid_ctype.h"
 #include "libcpuid_util.h"
 #include "libcpuid_internal.h"
 #include "recog_amd.h"
@@ -176,6 +176,7 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15, -1, -1, 15, 0x5f,   1,   256,    -1, NC, SEMPRON_            ,     0, "Sempron 64 (Manila/256K)"      },
 	{ 15, -1, -1, 15, 0x6b,   2,   256,    -1, NC, SEMPRON_            ,     0, "Sempron 64 Dual (Sherman/256K)"},
 	{ 15, -1, -1, 15, 0x6b,   2,   512,    -1, NC, SEMPRON_            ,     0, "Sempron 64 Dual (Sherman/512K)"},
+	{ 15, -1, -1, 15, 0x7c,   1,   512,    -1, NC, ATHLON_             ,     0, "Athlon 64 (Sherman/512K)"      },
 	{ 15, -1, -1, 15, 0x7f,   1,   256,    -1, NC, SEMPRON_            ,     0, "Sempron 64 (Sparta/256K)"      },
 	{ 15, -1, -1, 15, 0x7f,   1,   512,    -1, NC, SEMPRON_            ,     0, "Sempron 64 (Sparta/512K)"      },
 	{ 15, -1, -1, 15, 0x4c,   1,   256,    -1, NC, MOBILE_| SEMPRON_   ,     0, "Mobile Sempron 64 (Keene/256K)"},
@@ -219,6 +220,8 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15,  6, -1, 16,    6,   2,  1024,    -1, NC, ATHLON_|_64_|_X2    ,     0, "Athlon II X2 (Regor)"          },
 	{ 15,  5, -1, 16,    5,   3,   512,    -1, NC, ATHLON_|_64_|_X3    ,     0, "Athlon II X3 (Rana)"           },
 	{ 15,  5, -1, 16,    5,   4,   512,    -1, NC, ATHLON_|_64_|_X4    ,     0, "Athlon II X4 (Propus)"         },
+	/* Opteron derivates: */
+	{ 15,  9, -1, 22,    9,   8,    -1,    -1, NC, OPTERON_            ,     0, "Magny-Cours Opteron"           },
 	/* Llano APUs (2011): */
 	{ 15,  1, -1, 18,    1,   2,    -1,    -1, FUSION_EA, 0            ,     0, "Llano X2"                      },
 	{ 15,  1, -1, 18,    1,   3,    -1,    -1, FUSION_EA, 0            ,     0, "Llano X3"                      },
@@ -232,10 +235,11 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15,  2, -1, 20,   -1,   2,    -1,    -1, FUSION_Z, 0             ,     0, "Brazos Desna (Dual-core)"      },
 
 	/* Family 15h: Bulldozer Architecture (2011) */
-	{ 15, -1, -1, 21,    0,   4,    -1,    -1, NC, 0                   ,     0, "Bulldozer X2"                  },
-	{ 15, -1, -1, 21,    1,   4,    -1,    -1, NC, 0                   ,     0, "Bulldozer X2"                  },
-	{ 15, -1, -1, 21,    1,   6,    -1,    -1, NC, 0                   ,     0, "Bulldozer X3"                  },
-	{ 15, -1, -1, 21,    1,   8,    -1,    -1, NC, 0                   ,     0, "Bulldozer X4"                  },
+	{ 15, -1, -1, 21,    0,   4,    -1,    -1, NC, 0                   ,     0, "Zambezi X2"                    },
+	{ 15, -1, -1, 21,    1,   4,    -1,    -1, NC, 0                   ,     0, "Zambezi X2"                    },
+	{ 15, -1, -1, 21,    1,   6,    -1,    -1, NC, 0                   ,     0, "Zambezi X3"                    },
+	{ 15, -1, -1, 21,    1,   8,    -1,    -1, NC, 0                   ,     0, "Zambezi X4"                    },
+	{ 15, -1, -1, 21,    1,  -1,    -1,    -1, NC, OPTERON_            ,     0, "Interlagos"                    },
 	/* 2nd-gen, Piledriver core (2012): */
 	{ 15, -1, -1, 21,    2,   4,    -1,    -1, NC, 0                   ,     0, "Vishera X2"                    },
 	{ 15, -1, -1, 21,    2,   6,    -1,    -1, NC, 0                   ,     0, "Vishera X3"                    },
@@ -244,12 +248,15 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15,  0, -1, 21,   16,   4,    -1,    -1, FUSION_A, 0             ,     0, "Trinity X4"                    },
 	{ 15,  3, -1, 21,   19,   2,    -1,    -1, FUSION_A, 0             ,     0, "Richland X2"                   },
 	{ 15,  3, -1, 21,   19,   4,    -1,    -1, FUSION_A, 0             ,     0, "Richland X4"                   },
+	{ 15,  2, -1, 21,    2,  -1,    -1,    -1, NC, OPTERON_            ,     0, "Abu Dhabi"                     },
 	/* 3rd-gen, Steamroller core (2014): */
 	{ 15,  0, -1, 21,   48,   2,    -1,    -1, FUSION_A, 0             ,     0, "Kaveri X2"                     },
 	{ 15,  0, -1, 21,   48,   4,    -1,    -1, FUSION_A, 0             ,     0, "Kaveri X4"                     },
-	{ 15,  8, -1, 21,   56,   4,    -1,    -1, FUSION_A, 0             ,     0, "Godavari X2"                   },
+	{ 15,  8, -1, 21,   56,   2,    -1,    -1, FUSION_A, 0             ,     0, "Godavari X2"                   },
 	{ 15,  8, -1, 21,   56,   4,    -1,    -1, FUSION_A, 0             ,     0, "Godavari X4"                   },
 	{ 15,  8, -1, 21,   56,   4,    -1,    -1, NC      , ATHLON_|_X4   ,     0, "Godavari X4"                   },
+	{ 15,  0, -1, 21,   48,   2,    -1,    -1, FUSION_RX, 0            ,     0, "Bald Eagle X2"                 },
+	{ 15,  0, -1, 21,   48,   4,    -1,    -1, FUSION_RX, 0            ,     0, "Bald Eagle X4"                 },
 	/* 4th-gen, Excavator core (2015): */
 	{ 15,  1, -1, 21,   96,   2,    -1,    -1, FUSION_A, 0             ,     0, "Carrizo X2"                    },
 	{ 15,  1, -1, 21,   96,   4,    -1,    -1, FUSION_A, 0             ,     0, "Carrizo X4"                    },
@@ -261,11 +268,19 @@ const struct match_entry_t cpudb_amd[] = {
 	/* Family 16h: Jaguar Architecture (2013) */
 	{ 15,  0, -1, 22,    0,   2,    -1,    -1, FUSION_A, 0             ,     0, "Kabini X2"                     },
 	{ 15,  0, -1, 22,    0,   4,    -1,    -1, FUSION_A, 0             ,     0, "Kabini X4"                     },
+	{ 15,  0, -1, 22,    0,   2,    -1,    -1, NC,       SEMPRON_|_X2  ,     0, "Kabini X2"                     },
+	{ 15,  0, -1, 22,    0,   4,    -1,    -1, NC,       SEMPRON_|_X4  ,     0, "Kabini X4"                     },
+	{ 15,  0, -1, 22,    0,   4,    -1,    -1, NC,       ATHLON_|_X4   ,     0, "Kabini X4"                     },
 	/* 2nd-gen, Puma core (2013): */
 	{ 15,  0, -1, 22,   48,   2,    -1,    -1, FUSION_E, 0             ,     0, "Mullins X2"                    },
 	{ 15,  0, -1, 22,   48,   4,    -1,    -1, FUSION_A, 0             ,     0, "Mullins X4"                    },
+	{ 15,  0,  1, 22,   48,   2,    -1,    -1, FUSION_A, 0             ,     0, "Beema X2"                      },
+	{ 15,  0,  1, 22,   48,   4,    -1,    -1, FUSION_A, 0             ,     0, "Beema X4"                      },
+	{ 15,  0,  1, 22,   48,   2,    -1,    -1, FUSION_GX, 0            ,     0, "Steppe Eagle X2"               },
+	{ 15,  0,  1, 22,   48,   4,    -1,    -1, FUSION_GX, 0            ,     0, "Steppe Eagle X4"               },
 
-	/* Family 17h: Zen Architecture (2017) => https://en.wikichip.org/wiki/amd/microarchitectures/zen */
+	/* Family 17h */
+	/* Zen (2017) => https://en.wikichip.org/wiki/amd/microarchitectures/zen */
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, EPYC_               ,     0, "EPYC (Naples)"                 },
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, RYZEN_TR_           ,     0, "Threadripper (Whitehaven)"     },
 	{ 15, -1, -1, 23,    1,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Summit Ridge)"        },
@@ -275,6 +290,9 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15, -1, -1, 23,   17,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Raven Ridge)"         },
 	{ 15, -1, -1, 23,   17,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Raven Ridge)"         },
 	{ 15, -1, -1, 23,   17,  -1,    -1,    -1, NC, ATHLON_             ,     0, "Athlon (Raven Ridge)"          },
+	{ 15, -1, -1, 23,   32,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Dali)"                },
+	{ 15, -1, -1, 23,   32,  -1,    -1,    -1, NC, ATHLON_             ,     0, "Athlon (Dali)"                 },
+	{ 15, -1,  1, 23,   32,  -1,    -1,    -1, NC, 0                   ,     0, "Dali"                          },
 	/* Zen+ (2018) => https://en.wikichip.org/wiki/amd/microarchitectures/zen%2B */
 	{ 15, -1, -1, 23,    8,  -1,    -1,    -1, NC, RYZEN_TR_           ,     0, "Threadripper (Colfax)"         },
 	{ 15, -1, -1, 23,    8,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Pinnacle Ridge)"      },
@@ -298,8 +316,24 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15, -1, -1, 23,  104,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Lucienne)"            },
 	{ 15, -1, -1, 23,  104,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Lucienne)"            },
 	{ 15, -1, -1, 23,  104,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Lucienne)"            },
+	{ 15, -1, -1, 23,   71,  -1,    -1,    -1, NC, 0                   ,     0, "Desktop Kit (Zen 2)"           }, /* 4700S Desktop Kit */
+	{ 15, -1, -1, 23,  132,  -1,    -1,    -1, NC, 0                   ,     0, "Desktop Kit (Zen 2)"           }, /* 4800S Desktop Kit */
+	{ 15, -1,  2, 23,  144,  -1,    -1,    -1, NC, 0                   ,     0, "Van Gogh"                      }, /* Custom APU 0405 */
+	{ 15, -1,  0, 23,  145,  -1,    -1,    -1, NC, 0                   ,     0, "Van Gogh"                      }, /* Custom APU 0932 */
+	{ 15, -1, -1, 23,  160,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Mendocino)"           },
+	{ 15, -1, -1, 23,  160,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Mendocino)"           },
+	{ 15, -1, -1, 23,  160,  -1,    -1,    -1, NC, ATHLON_             ,     0, "Athlon (Mendocino)"            },
+
+	/* Family 18h */
+	/* Zen Architecture for Hygon (2018) => https://en.wikichip.org/wiki/amd/microarchitectures/zen */
+	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_7              ,     0, "C86 7 (Dhyana)"               },
+	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_5              ,     0, "C86 5 (Dhyana)"               },
+	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_3              ,     0, "C86 3 (Dhyana)"               },
+
+	/* Family 19h */
 	/* Zen 3 (2020) => https://en.wikichip.org/wiki/amd/microarchitectures/zen_3 */
 	{ 15, -1, -1, 25,    1,  -1,    -1,    -1, NC, EPYC_               ,     0, "EPYC (Milan)"                  },
+	{ 15, -1, -1, 25,    8,  -1,    -1,    -1, NC, RYZEN_TR_           ,     0, "Threadripper (Chagall)"        },
 	{ 15, -1, -1, 25,   33,  -1,    -1,    -1, NC, RYZEN_|_9           ,     0, "Ryzen 9 (Vermeer)"             },
 	{ 15, -1, -1, 25,   33,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Vermeer)"             },
 	{ 15, -1, -1, 25,   33,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Vermeer)"             },
@@ -309,23 +343,56 @@ const struct match_entry_t cpudb_amd[] = {
 	{ 15, -1, -1, 25,   80,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Cezanne)"             },
 	{ 15, -1, -1, 25,   80,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Cezanne)"             },
 	/* Zen 3+ (2022) */
-	{ 15, -1,  2, 25,   33,  -1,    -1,    -1, NC, RYZEN_|_9           ,     0, "Ryzen 9 (Warhol)"              },
-	{ 15, -1,  2, 25,   33,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Warhol)"              },
-	{ 15, -1,  2, 25,   33,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Warhol)"              },
-	{ 15, -1,  2, 25,   33,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Warhol)"              },
 	{ 15, -1, -1, 25,   68,  -1,    -1,    -1, NC, RYZEN_|_9           ,     0, "Ryzen 9 (Rembrandt)"           },
 	{ 15, -1, -1, 25,   68,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Rembrandt)"           },
 	{ 15, -1, -1, 25,   68,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Rembrandt)"           },
 	{ 15, -1, -1, 25,   68,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Rembrandt)"           },
+	/* Zen 4 (2022) => https://en.wikichip.org/wiki/amd/microarchitectures/zen_4 */
+	{ 15, -1, -1, 25,   17,  -1,    -1,    -1, NC, EPYC_               ,     0, "EPYC (Genoa)"                  },
+	{ 15, -1, -1, 25,   24,  -1,    -1,    -1, NC, RYZEN_TR_           ,     0, "Threadripper (Storm Peak)"     },
+	/*  => Raphael (7000 series, Zen 4/RDNA2 based) */
+	{ 15, -1,  2, 25,   97,  -1,    -1,    -1, NC, RYZEN_|_9           ,     0, "Ryzen 9 (Raphael)"             },
+	{ 15, -1,  2, 25,   97,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Raphael)"             },
+	{ 15, -1,  2, 25,   97,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Raphael)"             },
+	{ 15, -1,  2, 25,   97,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Raphael)"             },
+	/*  => Dragon Range (7045 series, Zen 4/RDNA2 based) */
+	{ 15, -1, -1, 25,   97,  -1,    -1,    -1, NC, RYZEN_|_9|_H        ,     0, "Ryzen 9 (Dragon Range)"        },
+	{ 15, -1, -1, 25,   97,  -1,    -1,    -1, NC, RYZEN_|_7|_H        ,     0, "Ryzen 7 (Dragon Range)"        },
+	{ 15, -1, -1, 25,   97,  -1,    -1,    -1, NC, RYZEN_|_5|_H        ,     0, "Ryzen 5 (Dragon Range)"        },
+	/*  => Phoenix (7040 series, Zen 4/RDNA3/XDNA based) */
+	{ 15, -1, -1, 25,  116,  -1,    -1,    -1, NC, RYZEN_|_9|_H        ,     0, "Ryzen 9 (Phoenix)"             },
+	{ 15, -1, -1, 25,  116,  -1,    -1,    -1, NC, RYZEN_|_7|_H        ,     0, "Ryzen 7 (Phoenix)"             },
+	{ 15, -1, -1, 25,  116,  -1,    -1,    -1, NC, RYZEN_|_7|_U        ,     0, "Ryzen 7 (Phoenix)"             },
+	{ 15, -1, -1, 25,  116,  -1,    -1,    -1, NC, RYZEN_|_5|_H        ,     0, "Ryzen 5 (Phoenix)"             },
+	{ 15, -1, -1, 25,  116,  -1,    -1,    -1, NC, RYZEN_|_5|_U        ,     0, "Ryzen 5 (Phoenix)"             },
+	{ 15, -1, -1, 25,  116,  -1,    -1,    -1, NC, RYZEN_|_3|_U        ,     0, "Ryzen 3 (Phoenix)"             },
+	{ 15, -1, -1, 25,  116,  -1,    -1,    -1, NC, RYZEN_|_Z           ,     0, "Ryzen Z1 (Phoenix)"            },
+	/*  => Phoenix (8000 series, Zen 4 based) */
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_7|_F        ,     0, "Ryzen 7 (Phoenix)"             },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_5|_F        ,     0, "Ryzen 5 (Phoenix)"             },
+	/*  => Phoenix (8000 series with Radeon Graphics, Zen 4/RDNA3/XDNA based) */
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_9|_G        ,     0, "Ryzen 9 (Phoenix)"             },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_7|_G        ,     0, "Ryzen 7 (Phoenix)"             },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_5|_G        ,     0, "Ryzen 5 (Phoenix)"             },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_3|_G        ,     0, "Ryzen 3 (Phoenix)"             },
+	/*  => Hawk Point (8040 series, Zen 4/RDNA3/XDNA based) */
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_9|_H        ,     0, "Ryzen 9 (Hawk Point)"          },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_7|_H        ,     0, "Ryzen 7 (Hawk Point)"          },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_7|_U        ,     0, "Ryzen 7 (Hawk Point)"          },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_5|_H        ,     0, "Ryzen 5 (Hawk Point)"          },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_5|_U        ,     0, "Ryzen 5 (Hawk Point)"          },
+	{ 15, -1, -1, 25,  117,  -1,    -1,    -1, NC, RYZEN_|_3|_U        ,     0, "Ryzen 3 (Hawk Point)"          },
+	/* Zen 5 (2024) => https://en.wikichip.org/wiki/amd/microarchitectures/zen_5 */
+	{ 15, -1, -1, 26,    2,  -1,    -1,    -1, NC, EPYC_               ,     0, "EPYC (Turin)"                  },
+	/*  => Granite Ridge (9000 series, Zen 5 based) */
+	{ 15, -1, -1, 26,   68,  -1,    -1,    -1, NC, RYZEN_|_9           ,     0, "Ryzen 9 (Granite Ridge)"       },
+	{ 15, -1, -1, 26,   68,  -1,    -1,    -1, NC, RYZEN_|_7           ,     0, "Ryzen 7 (Granite Ridge)"       },
+	{ 15, -1, -1, 26,   68,  -1,    -1,    -1, NC, RYZEN_|_5           ,     0, "Ryzen 5 (Granite Ridge)"       },
+	{ 15, -1, -1, 26,   68,  -1,    -1,    -1, NC, RYZEN_|_3           ,     0, "Ryzen 3 (Granite Ridge)"       },
+	/*  => Strix Point (Zen 5/RDNA3.5/XDNA2 based) */
+	{ 15, -1, -1, 26,   36,  -1,    -1,    -1, NC, RYZEN_|_AI_|_9      ,     0, "Ryzen AI 9 (Strix Point)"      },
+	{ 15, -1, -1, 26,   36,  -1,    -1,    -1, NC, RYZEN_|_AI_|_7      ,     0, "Ryzen AI 7 (Strix Point)"      },
 	/* F   M   S  EF    EM  #cores  L2$   L3$  BC  ModelBits          ModelCode  Name                           */
-
-	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_7              ,     0, "C86 7 (Dhyana)"               },
-	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_5              ,     0, "C86 5 (Dhyana)"               },
-	{ 15, -1, -1, 24,    0,  -1,    -1,    -1, NC, C86_|_3              ,     0, "C86 3 (Dhyana)"               },
-
-
-	/* Newer Opterons: */
-	{ 15,  9, -1, 22,    9,   8,    -1,    -1, NC, OPTERON_            ,     0, "Magny-Cours Opteron"           },
 };
 
 
@@ -382,11 +449,11 @@ static void load_amd_features(struct cpu_raw_data_t* raw, struct cpu_id_t* data)
 		- bit 0: FP128 */
 		data->detection_hints[CPU_HINT_SSE_SIZE_AUTH] = 1;
 		if ((raw->ext_cpuid[0x1a][EAX] >> 2) & 1)
-			data->sse_size = 256;
+			data->x86.sse_size = 256;
 		else if ((raw->ext_cpuid[0x1a][EAX]) & 1)
-			data->sse_size = 128;
+			data->x86.sse_size = 128;
 		else
-			data->sse_size = 64;
+			data->x86.sse_size = 64;
 	}
 }
 
@@ -416,26 +483,13 @@ static void decode_amd_cache_info(struct cpu_raw_data_t* raw, struct cpu_id_t* d
 
 		l3_result = (raw->ext_cpuid[6][EDX] >> 18);
 		if (l3_result > 0) {
-			l3_result = 512 * l3_result; /* AMD spec says it's a range,
-			                                but we take the lower bound */
+			l3_result *= 512; /* AMD spec says it's a range, but we take the lower bound */
 			l3_assoc = (raw->ext_cpuid[6][EDX] >> 12) & 0xf;
 			data->l3_cache = l3_result;
-
-			if(l3_assoc == 0x9) {
-				/* Since Zen 2, CPUID_Fn80000006_EDX[15:12] is invalid (0x9)
-				According to page 74 on
-				Processor Programming Reference (PPR) for AMD Family 17h Model 71h, Revision B0 Processors:
-				"There are insufficient available encodings to represent all possible L3
-				associativities. Please refer to Core::X86::Cpuid::CachePropEbx3[CacheNumWays]."
-				Note: we do not read CPUID_Fn80000001_ECX[22] (AKA TopologyExtensions) to allow backward compatibility with existing tests */
-				data->l3_assoc     = EXTRACTS_BITS(raw->amd_fn8000001dh[0x3][EBX], 31, 22) + 1; // Cache number of ways is CacheNumWays + 1
-				data->l3_cacheline = EXTRACTS_BITS(raw->amd_fn8000001dh[0x3][EBX], 11, 0) + 1; // Cache line size in bytes is CacheLineSize + 1
-			} else {
-				data->l3_assoc = assoc_table[l3_assoc];
-				data->l3_cacheline = (raw->ext_cpuid[6][EDX]) & 0xff;
-			}
+			data->l3_assoc = assoc_table[l3_assoc];
+			data->l3_cacheline = (raw->ext_cpuid[6][EDX]) & 0xff;
 		} else {
-			data->l3_cache = 0;
+			data->l3_cache = -1;
 		}
 	}
 }
@@ -452,7 +506,7 @@ static void decode_amd_number_of_cores(struct cpu_raw_data_t* raw, struct cpu_id
 	}
 	if (data->flags[CPU_FEATURE_HT]) {
 		if (num_cores > 1) {
-			if ((data->ext_family >= 23) && (raw->ext_cpuid[0][EAX] >= 30))
+			if ((data->x86.ext_family >= 23) && (raw->ext_cpuid[0][EAX] >= 30))
 				/* Ryzen 3 has SMT flag, but in fact cores count is equal to threads count.
 				Ryzen 5/7 reports twice as many "real" cores (e.g. 16 cores instead of 8) because of SMT. */
 				/* On PPR 17h, page 82:
@@ -497,6 +551,7 @@ static struct amd_code_and_bits_t decode_amd_codename_part1(const char *bs)
 	struct amd_code_and_bits_t result;
 	uint64_t bits = 0;
 	int i = 0;
+	const size_t n = strlen(bs);
 
 	const struct { amd_code_t c; const char *search; } code_matchtable[] = {
 		{ PHENOM2, "Phenom(tm) II" },
@@ -505,6 +560,8 @@ static struct amd_code_and_bits_t decode_amd_codename_part1(const char *bs)
 		{ FUSION_E, "E-###" },
 		{ FUSION_Z, "Z-##" },
 		{ FUSION_EA, "[EA]#-####" },
+		{ FUSION_RX, "RX-###" },
+		{ FUSION_GX, "GX-###" },
 	};
 
 	const struct { uint64_t bit; const char *search; } bit_matchtable[] = {
@@ -540,14 +597,33 @@ static struct amd_code_and_bits_t decode_amd_codename_part1(const char *bs)
 	if (amd_has_turion_modelname(bs)) {
 		bits |= TURION_;
 	}
-	if ((i = match_pattern(bs, "Ryzen [3579]")) != 0) {
+	if (((i = match_pattern(bs, "Ryzen [3579Z]")) != 0) || ((i = match_pattern(bs, "Ryzen AI [3579]")) != 0)) {
 		bits |= RYZEN_;
 		i--;
+		if ((bs[i + 6] == 'A') && (bs[i + 7] == 'I')) {
+			bits |= _AI_;
+			i += 3; // "AI " offset
+		}
 		switch (bs[i + 6]) {
 			case '3': bits |= _3; break;
 			case '5': bits |= _5; break;
 			case '7': bits |= _7; break;
 			case '9': bits |= _9; break;
+			case 'Z': bits |= _Z; break;
+		}
+		/* Stop the loop after a whitespace to avoid to read some words like "Graphics".
+		   Example: bs="AMD Ryzen 7 8845HS w/ Radeon 780M Graphics"
+		   => loop i from 12 to 17, i.e. "8845HS" in such example
+		 */
+		for(i = i + 8; (i < (int)n) && (bs[i] != ' '); i++) {
+			switch (bs[i]) {
+				case 'F': bits |= _F; break;
+				case 'G': bits |= _G; break;
+				case 'H': bits |= _H; break;
+				case 'S': bits |= _S; break;
+				case 'U': bits |= _U; break;
+				case 'X': bits |= _X; break;
+			}
 		}
 	}
 
@@ -572,7 +648,7 @@ static struct amd_code_and_bits_t decode_amd_codename_part1(const char *bs)
 	return result;
 }
 
-static void decode_amd_codename(struct cpu_raw_data_t* raw, struct cpu_id_t* data, struct internal_id_info_t* internal)
+static void decode_amd_codename(struct cpu_id_t* data, struct internal_id_info_t* internal)
 {
 	struct amd_code_and_bits_t code_and_bits = decode_amd_codename_part1(data->brand_str);
 	int i = 0;
@@ -589,6 +665,15 @@ static void decode_amd_codename(struct cpu_raw_data_t* raw, struct cpu_id_t* dat
 		code_and_bits.bits &= ~(ATHLON_ | _64_);
 		code_and_bits.bits |= SEMPRON_;
 	}
+	if (code_str)
+		debugf(2, "Detected AMD brand code: %d (%s)\n", code_and_bits.code, code_str);
+	else
+		debugf(2, "Detected AMD brand code: %d\n", code_and_bits.code);
+
+	if (code_and_bits.bits) {
+		debugf(2, "Detected AMD bits: ");
+		debug_print_lbits(2, code_and_bits.bits);
+	}
 
 	internal->code.amd = code_and_bits.code;
 	internal->bits = code_and_bits.bits;
@@ -599,8 +684,48 @@ static void decode_amd_codename(struct cpu_raw_data_t* raw, struct cpu_id_t* dat
 int cpuid_identify_amd(struct cpu_raw_data_t* raw, struct cpu_id_t* data, struct internal_id_info_t* internal)
 {
 	load_amd_features(raw, data);
-	decode_amd_cache_info(raw, data);
+	if ((EXTRACTS_BIT(raw->ext_cpuid[1][ECX], 22) == 1) && (EXTRACTS_BITS(raw->amd_fn8000001dh[0][EAX], 4, 0) != 0)) /* TopologyExtensions supported */
+		decode_deterministic_cache_info_x86(raw->amd_fn8000001dh, MAX_AMDFN8000001DH_LEVEL, data, internal);
+	else
+		decode_amd_cache_info(raw, data);
 	decode_amd_number_of_cores(raw, data);
-	decode_amd_codename(raw, data, internal);
+	decode_amd_codename(data, internal);
+	decode_architecture_version_x86(data);
+	data->purpose = cpuid_identify_purpose_amd(raw);
 	return 0;
+}
+
+cpu_purpose_t cpuid_identify_purpose_amd(struct cpu_raw_data_t* raw)
+{
+	int i;
+
+	/* Check if Extended CPU Topology is supported */
+	if (raw->amd_fn80000026h[0][EAX] == 0x0)
+		return PURPOSE_GENERAL;
+
+	/* Check for heterogeneous cores
+	From AMD64 Architecture Programmer’s Manual - Volume 3: General-Purpose and System Instructions
+	Available at https://www.amd.com/content/dam/amd/en/documents/processor-tech-docs/programmer-references/24594.pdf
+
+	- CPUID_Fn80000026_EAX [Extended CPU Topology][30] is HeterogeneousCores.
+	  Set to 1 if all components at the current hierarchy level do not consist of the cores that report the same core type (CoreType).
+
+	- CPUID_Fn80000026_ECX [Extended CPU Topology][15:8] is LevelType.
+	  LevelType 01h is Core.
+
+	- CPUID_Fn80000026_EBX [Extended CPU Topology][31:28] is CoreType.
+	  Only valid while LevelType=Core.
+	*/
+	for (i = 0; (raw->amd_fn80000026h[i][EBX] != 0x0) && (raw->amd_fn80000026h[i][ECX] != 0x0) && (i < MAX_AMDFN80000026H_LEVEL); i++) {
+		if ((EXTRACTS_BIT(raw->amd_fn80000026h[i][EAX], 30) == 0x1) && (EXTRACTS_BITS(raw->amd_fn80000026h[i][ECX], 15, 8) == 0x1)) {
+			debugf(3, "Detected AMD CPU with heterogeneous cores\n");
+			switch (EXTRACTS_BITS(raw->amd_fn80000026h[i][EBX], 31, 28)) {
+				case 0x0: return PURPOSE_PERFORMANCE;
+				case 0x1: return PURPOSE_EFFICIENCY;
+				default:  return PURPOSE_GENERAL;
+			}
+		}
+	}
+
+	return PURPOSE_GENERAL;
 }
